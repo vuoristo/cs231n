@@ -5,6 +5,20 @@ import numpy as np
 from cs231n.layers import *
 from cs231n.layer_utils import *
 
+def affine_batchnorm_relu_forward(x, w, b, gamma, beta, bn_param):
+    fc_out, fc_cache = affine_forward(x, w, b)
+    bn_out, bn_cache = batchnorm_forward(fc_out, gamma, beta, bn_param)
+    relu_out, relu_cache = relu_forward(bn_out)
+    cache = (fc_cache, bn_cache, relu_cache)
+
+    return relu_out, cache
+
+def affine_batchnorm_relu_backward(dout, cache):
+    fc_cache, bn_cache, relu_cache = cache
+    drelu = relu_backward(dout, relu_cache)
+    dbn, dgamma, dbeta  = batchnorm_backward(dout, bn_cache)
+    dx, dw, db = affine_backward(dbn, fc_cache)
+    return dgamma, dbeta, dx, dw, db
 
 class TwoLayerNet(object):
     """
@@ -191,6 +205,9 @@ class FullyConnectedNet(object):
                     previous_dim*hidden_dim).reshape(previous_dim, hidden_dim)
             self.params['W{}'.format(l+1)] = W
             self.params['b{}'.format(l+1)] = np.zeros(hidden_dim)
+            if self.use_batchnorm:
+                self.params['gamma{}'.format(l+1)] = np.ones(hidden_dim)
+                self.params['beta{}'.format(l+1)] = np.zeros(hidden_dim)
             previous_dim = hidden_dim
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -254,7 +271,12 @@ class FullyConnectedNet(object):
         for l in range(1, self.num_layers):
             W = self.params['W{}'.format(l)]
             b = self.params['b{}'.format(l)]
-            out, cache = affine_relu_forward(layer_input, W, b)
+            if self.use_batchnorm:
+                gamma = self.params['gamma{}'.format(l)]
+                beta = self.params['beta{}'.format(l)]
+                out, cache = affine_batchnorm_relu_forward(layer_input, W, b, gamma, beta, self.bn_params[l-1])
+            else:
+                out, cache = affine_relu_forward(layer_input, W, b)
             caches.append(cache)
             layer_input = out
 
@@ -290,9 +312,14 @@ class FullyConnectedNet(object):
         for l in range(1, self.num_layers)[::-1]:
             W = self.params['W{}'.format(l)]
             cache = caches[l-1]
-            dx, dW, db = affine_relu_backward(layer_loss, cache)
+            lgrads = {}
+            if self.use_batchnorm:
+                dgamma, dbeta, dx, dW, db = affine_batchnorm_relu_backward(layer_loss, cache)
+                lgrads.update({'gamma{}'.format(l): dgamma, 'beta{}'.format(l): dbeta})
+            else:
+                dx, dW, db = affine_relu_backward(layer_loss, cache)
             dW += self.reg * W
-            lgrads = {'W{}'.format(l): dW, 'b{}'.format(l): db}
+            lgrads.update({'W{}'.format(l): dW, 'b{}'.format(l): db})
             grads.update(lgrads)
             layer_loss = dx
 
