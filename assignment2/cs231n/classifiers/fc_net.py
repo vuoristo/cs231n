@@ -277,6 +277,9 @@ class FullyConnectedNet(object):
                 out, cache = affine_batchnorm_relu_forward(layer_input, W, b, gamma, beta, self.bn_params[l-1])
             else:
                 out, cache = affine_relu_forward(layer_input, W, b)
+            if self.use_dropout:
+                out, dropout_cache = dropout_forward(out, self.dropout_param)
+                cache = (cache, dropout_cache)
             caches.append(cache)
             layer_input = out
 
@@ -313,6 +316,10 @@ class FullyConnectedNet(object):
             W = self.params['W{}'.format(l)]
             cache = caches[l-1]
             lgrads = {}
+            if self.use_dropout:
+                dropout_cache = cache[1]
+                cache = cache[0]
+                layer_loss = dropout_backward(layer_loss, dropout_cache)
             if self.use_batchnorm:
                 dgamma, dbeta, dx, dW, db = affine_batchnorm_relu_backward(layer_loss, cache)
                 lgrads.update({'gamma{}'.format(l): dgamma, 'beta{}'.format(l): dbeta})
