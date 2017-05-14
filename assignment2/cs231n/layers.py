@@ -448,10 +448,12 @@ def conv_backward_naive(dout, cache):
     dx, _ = conv_forward_naive(strided_dout, w_, np.zeros(C,), back_param)
 
     ## Compute dw
-    dout_T = np.transpose(dout, (1,0,2,3))
+    back_param['pad'] = pad
+
+    strided_dout_T = np.transpose(strided_dout, (1,0,2,3))
     x_T = np.transpose(x, (1,0,2,3))
-    dw_, _ = conv_forward_naive(dout_T, x_T, np.zeros(C,), conv_param)
-    dw = dw_[:,:,::-1,::-1]
+    dw, _ = conv_forward_naive(x_T, strided_dout_T, np.zeros(C,), back_param)
+    dw = np.transpose(dw, (1,0,2,3))
 
     ## Compute db
     db = np.sum(dout, axis=(0,2,3))
