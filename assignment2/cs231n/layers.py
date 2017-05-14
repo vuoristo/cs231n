@@ -383,30 +383,24 @@ def conv_forward_naive(x, w, b, conv_param):
     # TODO: Implement the convolutional forward pass.                         #
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
-    stride = conv_param['stride']
-    pad = conv_param['pad']
-    N = x.shape[0]
-    C = x.shape[1]
-    H = x.shape[2]
-    W = x.shape[3]
-
-    F = w.shape[0]
-    HH = w.shape[2]
-    WW = w.shape[3]
+    stride, pad = conv_param['stride'], conv_param['pad']
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
 
     H_prime = int(1 + (H + 2 * pad - HH) / stride)
     W_prime = int(1 + (W + 2 * pad - WW) / stride)
 
+    x_pad = x
     if pad != 0:
-      x = np.pad(x, ((0,0), (0,0), (pad, pad), (pad, pad)),
+      x_pad = np.pad(x, ((0,0), (0,0), (pad, pad), (pad, pad)),
         mode='constant')
 
     out = np.zeros((N, F, H_prime, W_prime))
     for y_pos in range(0, 1 + H + 2 * pad - HH, stride):
       for x_pos in range(0, 1 + W + 2 * pad - WW, stride):
         for f_pos in range(F):
-          out[:,f_pos,y_pos/stride,x_pos/stride] = np.sum(
-              x[:,:,y_pos:y_pos+HH,x_pos:x_pos+WW] * w[f_pos,:,:,:], axis=(1,2,3)) + b[f_pos]
+          out[:,f_pos,y_pos//stride,x_pos//stride] = np.sum(
+              x_pad[:,:,y_pos:y_pos+HH,x_pos:x_pos+WW] * w[f_pos,:,:,:], axis=(1,2,3)) + b[f_pos]
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -432,7 +426,35 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
-    pass
+    x, w, b, conv_param = cache
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+    _, _, DH, DW = dout.shape
+
+    ## Compute dx
+    pad, stride = conv_param['pad'], conv_param['stride']
+
+    new_out_width = DW + (DW - 1) * (stride - 1)
+    strided_dout = np.zeros((N, F, new_out_width, new_out_width))
+    strided_dout[:, :, ::stride, ::stride] = dout
+    w_ = w[:, :, ::-1, ::-1]
+    w_ = np.transpose(w_, (1,0,2,3))
+
+    back_param = {
+        'stride': 1,
+        'pad': (H - new_out_width + WW - 1) // 2
+      }
+
+    dx, _ = conv_forward_naive(strided_dout, w_, np.zeros(C,), back_param)
+
+    ## Compute dw
+    dout_T = np.transpose(dout, (1,0,2,3))
+    x_T = np.transpose(x, (1,0,2,3))
+    dw_, _ = conv_forward_naive(dout_T, x_T, np.zeros(C,), conv_param)
+    dw = dw_[:,:,::-1,::-1]
+
+    ## Compute db
+    db = np.sum(dout, axis=(0,2,3))
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
