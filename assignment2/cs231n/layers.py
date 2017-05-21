@@ -400,7 +400,8 @@ def conv_forward_naive(x, w, b, conv_param):
       for x_pos in range(0, 1 + W + 2 * pad - WW, stride):
         for f_pos in range(F):
           out[:,f_pos,y_pos//stride,x_pos//stride] = np.sum(
-              x_pad[:,:,y_pos:y_pos+HH,x_pos:x_pos+WW] * w[f_pos,:,:,:], axis=(1,2,3)) + b[f_pos]
+              x_pad[:,:,y_pos:y_pos+HH,x_pos:x_pos+WW]
+              * w[f_pos,:,:,:], axis=(1,2,3)) + b[f_pos]
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -483,7 +484,18 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # TODO: Implement the max pooling forward pass                            #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    stride = pool_param['stride']
+    out_height = (W - pool_height)/stride + 1
+    out_width = (W - pool_width)/stride + 1
+
+    out = np.zeros((N, C, out_height, out_width))
+    for out_i, x_i in enumerate(range(0, H - pool_height + 1, stride)):
+        for out_j, x_j in enumerate(range(0, W - pool_width + 1, stride)):
+            out[:,:,out_i,out_j] = np.max(
+                    x[:,:,x_i:x_i+pool_height, x_j:x_j+pool_width], axis=(2,3))
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -506,12 +518,44 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the max pooling backward pass                           #
     ###########################################################################
-    pass
+    x, pool_param = cache
+    N, C, H, W = x.shape
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    stride = pool_param['stride']
+    _,_,out_height, out_width = dout.shape
+
+    dx = np.zeros_like(x)
+
+    for out_i, x_i in enumerate(range(0, H - pool_height + 1, stride)):
+        for out_j, x_j in enumerate(range(0, W - pool_width + 1, stride)):
+            # Compute the maximum indices in the flattened pooling window
+            max_indices = np.reshape(
+                    x[:, :, x_i:x_i + pool_height, x_j:x_j + pool_width],
+                    (*x.shape[0:2], -1)).argmax(2)
+
+            # Compute the 2d indices in the pooling window
+            unraveled_index = np.stack(np.unravel_index(np.reshape(max_indices,
+                (-1)), (pool_height, pool_width)))
+
+            # Offset the pooling window indices by the current window position
+            full_length = np.prod(x.shape[0:2])
+            x_offset_vec = np.stack((np.full(full_length, x_i, dtype=np.int32),
+                np.full(full_length, x_j, dtype=np.int32)))
+            umax_index = unraveled_index + x_offset_vec
+
+            # Construct an indexing array for accessing x
+            xindex = np.vstack((np.arange(full_length)//x.shape[1],
+                np.arange(full_length)%x.shape[1], umax_index))
+
+            # Set the x elements with dout elements
+            dx[xindex[0], xindex[1], xindex[2], xindex[3]] = \
+                    np.reshape(dout[:,:,out_i,out_j], (-1))
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
     return dx
-
 
 def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     """
