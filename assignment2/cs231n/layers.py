@@ -453,7 +453,7 @@ def conv_backward_naive(dout, cache):
 
     strided_dout_T = np.transpose(strided_dout, (1,0,2,3))
     x_T = np.transpose(x, (1,0,2,3))
-    dw, _ = conv_forward_naive(x_T, strided_dout_T, np.zeros(C,), back_param)
+    dw, _ = conv_forward_naive(x_T, strided_dout_T, np.zeros(N,), back_param)
     dw = np.transpose(dw, (1,0,2,3))
 
     ## Compute db
