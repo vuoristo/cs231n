@@ -205,10 +205,11 @@ class FullyConnectedNet(object):
                     previous_dim*hidden_dim).reshape(previous_dim, hidden_dim)
             self.params['W{}'.format(l+1)] = W
             self.params['b{}'.format(l+1)] = np.zeros(hidden_dim)
-            if self.use_batchnorm:
+            if self.use_batchnorm and l != len(hidden_dims) -1:
                 self.params['gamma{}'.format(l+1)] = np.ones(hidden_dim)
                 self.params['beta{}'.format(l+1)] = np.zeros(hidden_dim)
             previous_dim = hidden_dim
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -234,7 +235,6 @@ class FullyConnectedNet(object):
         # Cast all parameters to the correct datatype
         for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
-
 
     def loss(self, X, y=None):
         """
@@ -268,7 +268,7 @@ class FullyConnectedNet(object):
         ############################################################################
         layer_input = X
         caches = []
-        for l in range(1, self.num_layers):
+        for l in range(1, self.num_layers - 1):
             W = self.params['W{}'.format(l)]
             b = self.params['b{}'.format(l)]
             if self.use_batchnorm:
@@ -283,7 +283,10 @@ class FullyConnectedNet(object):
             caches.append(cache)
             layer_input = out
 
-        scores = layer_input
+        W = self.params['W{}'.format(self.num_layers-1)]
+        b = self.params['b{}'.format(self.num_layers-1)]
+        scores, last_cache = affine_forward(layer_input, W, b)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -311,8 +314,15 @@ class FullyConnectedNet(object):
             self.params['W{}'.format(l)]**2) for l in range(1, self.num_layers)])
         loss = data_loss + regularizer_loss
 
-        layer_loss = dloss
-        for l in range(1, self.num_layers)[::-1]:
+        dx, dW, db = affine_backward(dloss, last_cache)
+        dW += self.reg * last_cache[1]
+        grads.update({
+            'W{}'.format(self.num_layers-1): dW,
+            'b{}'.format(self.num_layers-1): db,
+            })
+
+        layer_loss = dx
+        for l in range(1, self.num_layers-1)[::-1]:
             W = self.params['W{}'.format(l)]
             cache = caches[l-1]
             lgrads = {}
