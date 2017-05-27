@@ -238,9 +238,12 @@ def batchnorm_backward(dout, cache):
 
     dnormalized_x = dout * gamma
 
-    dsample_var = -0.5*np.power(sample_var+eps, -3/2)*np.sum(dnormalized_x*(x-sample_mean), axis=0)
-    dsample_mean = -1.0*1/np.sqrt(sample_var+eps)*np.sum(dnormalized_x, axis=0) + dsample_var*-2/N*np.sum(x-sample_mean, axis=0)
-    dx = dnormalized_x*1/np.sqrt(sample_var+eps) + dsample_var*2/N*(x-sample_mean) + dsample_mean*1/N
+    dsample_var = (-0.5 * np.power(sample_var + eps, -3/2) *
+            np.sum(dnormalized_x * (x - sample_mean), axis=0))
+    dsample_mean = (-1.0 * 1/np.sqrt(sample_var + eps) * np.sum(dnormalized_x,
+        axis=0) + dsample_var * -2/N * np.sum(x - sample_mean, axis=0))
+    dx = (dnormalized_x * 1/np.sqrt(sample_var + eps) +
+            dsample_var * 2/N * (x - sample_mean) + dsample_mean * 1/N)
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
