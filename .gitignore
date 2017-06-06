@@ -1,2 +1,5 @@
 .env/*
 assignment2/.ipynb_checkpoints/*
+assignment3/cs231n/datasets/*
+*.pyc
+*.pyx
