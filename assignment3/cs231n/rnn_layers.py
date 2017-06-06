@@ -144,12 +144,11 @@ def rnn_backward(dh, cache):
   dWh = np.zeros((H,H))
   db = np.zeros((H,))
 
-  dht = dh[:,-1,:]
+  dht = np.zeros((N,H))
   for timestep in range(T-1, -1, -1):
     cachet = cache[timestep]
+    dht += dh[:,timestep,:]
     dxt, dht, dWxt, dWht, dbt = rnn_step_backward(dht, cachet)
-    # there's no dh for the 0th hidden state:
-    dht += dh[:,timestep-1,:] if timestep > 0 else 0.0
     dx[:,timestep,:] = dxt
     dWx += dWxt
     dWh += dWht
