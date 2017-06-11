@@ -363,7 +363,16 @@ def lstm_forward(x, h0, Wx, Wh, b):
   # TODO: Implement the forward pass for an LSTM over an entire timeseries.   #
   # You should use the lstm_step_forward function that you just defined.      #
   #############################################################################
-  pass
+  N, T, D = x.shape
+  _, H = h0.shape
+  h = np.zeros((N,T,H))
+  ht = h0
+  ct = np.zeros_like(h0)
+  cache = []
+  for timestep in range(T):
+    ht, ct, cachet = lstm_step_forward(x[:,timestep,:], ht, ct, Wx, Wh, b)
+    h[:,timestep,:] = ht
+    cache.append(cachet)
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -391,7 +400,24 @@ def lstm_backward(dh, cache):
   # TODO: Implement the backward pass for an LSTM over an entire timeseries.  #
   # You should use the lstm_step_backward function that you just defined.     #
   #############################################################################
-  pass
+  N, T, H = dh.shape
+  _, D = cache[0][0].shape
+  dx = np.zeros((N,T,D))
+  dWx = np.zeros((D,4*H))
+  dWh = np.zeros((H,4*H))
+  db = np.zeros((4*H,))
+
+  dht = np.zeros((N,H))
+  dct = np.zeros((N,H))
+  for timestep in range(T-1, -1, -1):
+    cachet = cache[timestep]
+    dht += dh[:,timestep,:]
+    dxt, dht, dct, dWxt, dWht, dbt = lstm_step_backward(dht, dct, cachet)
+    dx[:,timestep,:] = dxt
+    dWx += dWxt
+    dWh += dWht
+    db  += dbt
+  dh0 = dht
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
